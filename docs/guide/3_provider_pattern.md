@@ -1,3 +1,311 @@
+## 供应商模式
+
+### 写在前面
+
+**供应商模式**可以说非常实用，在**组件设计拆分**过程中，很多**不同层级**的组件需要**全局**的用户信息，或者某个**局部**业务数据，有时我们**懒于设计**，采用最懒最直接的**props层层传递**的模式实现，经常我们是迫于项目**排期**，或者没想到更好的方式，或者不熟悉供应商模式，最终都造成了我们**不愿意**看到的一个事实：写了**难以维护**的代码，俗称**shi山**。
+
+ [过段时间再来维护自己的代码.gif](http://5b0988e595225.cdn.sohucs.com/images/20191202/1980df8962ac444fa1543bc87898655f.gif)，打死都不愿承认这些代码自己的**杰作**！
+ 
+如果你也有这样的经历，来吧，跟我一起学习**供应商模式**，不要在代码里玩低端props接力了！！
+
+
+### 释义
+
+像供应商一样，为不同层级子组件供应全局或者局部数据；
+
+#### shi山代码分析
+
+比如一个**App**页面，有侧边栏**SideBar**组件和内容**Content**组件；SideBar组件内是个列表组件**List**，List组件内有很多子项**ListItem**，需要用到App页面的**data**数据；内容Content组件内有**Header**和**Block**组件，都需要用到App里的**data**数据。
+
+如果**层层传递**的写法，伪代码如下：
+
+```js
+function App() {
+  const data = { ... }
+  
+  return (
+    <div>
+      <SideBar data={data} />
+      <Content data={data} />
+    </div>
+  )
+}
+
+const SideBar = ({ data }) => <List data={data} />
+const List = ({ data }) => <ListItem data={data} />
+const ListItem = ({ data }) => <span>{data.listItem}</span>
+
+const Content = ({ data }) => (
+  <div>
+    <Header data={data} />
+    <Block data={data} />
+  </div>
+)
+const Header = ({ data }) => <div>{data.title}</div>
+const Block = ({ data }) => <Text data={data} />
+const Text = ({ data }) => <h1>{data.text}</h1>
+```
+
+这样层层传递层级够深，就形成**props黑洞**。上面的示例代码如果在真实的项目，会一个组件一个文件，复杂的情况可能要**跨好几层文件夹**，有些层级完全**不消费**data数据，也必须要**代为子组件传递props**；再者假如哪天**修改**一下data里的结构或者属性名，真的很头疼，这么多文件，哪个改了，哪个没改，还真不好确定，一点简单的改动，头上的**头发**估计又要掉**好几根**...
+
+
+<p align=center><img src="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/767eab24df1e468cbdb5f698ccff3d67~tplv-k3u1fbpfcp-watermark.image?" alt="image.png" width="50%" /></p>
+<p align=center>绝顶聪明</p>
+
+接下来，有请我们实力派**供应商模式**上场！
+
+### 供应商模式
+
+确实，遇到这种需要**跨层级传递props**的情况，很适合我们供应商模式。供应商模式像是一个**商店**一样，为**不同层级的组件**提供所需要的**props商品**。
+
+那具体要怎么做呢？用一个**Provider**包裹所有需要使用data数据的组件，它是通过**Context**上下文进行传递的，这就要用到**React为我们提供的createContext**方法了。
+
+```js
+const DataContext = React.createContext()
+
+function App() {
+
+const data = { ... }
+
+return (
+    <div>
+       <DataContext.Provider value={data}>
+            <SideBar />
+            <Content />
+      </DataContext.Provider>
+    </div>
+  )
+}
+
+```
+上面的代码，我们调用**createContext**方法创建了DataContext上下文对象，然后我们实用DataContext.**Provider**包裹所有需要使用data数据的**组件**，并通过**value**属性把data传过去。
+
+
+这样我们完成了供应商模式的**第一步**了，有了供应商子组件要怎么获得data数据呢？
+
+```js
+const SideBar = () => <List />
+const List = () => <ListItem />
+export const Content = () => <div><Header /><Block /></div>
+
+
+function ListItem() {
+  const { data } = React.useContext(DataContext);//跨文件 import导入DataContext
+  return <span>{data.listItem}</span>;
+}
+
+function Text() {
+  const { data } = React.useContext(DataContext); 
+  return <h1>{data.text}</h1>;
+}
+
+function Header() {
+  const { data } = React.useContext(DataContext);
+  return <div>{data.title}</div>;
+}
+```
+
+大家可以看到，我们实用React为我们提供的**useContext** Hook就可以拿到data数据；***通过这种改造，就有效避免了每个层级都传props，使用就消费，不使用就可以完全忽略data数据***，后面**修改或者重构**起来也轻松多了。
+
+所以说供应商模式是非常有用，特别是在**共享全局或局部数据**的时候。
+
+### 经典案例
+
+接下来我们来看一个经典案例：**动态主题** ———— 点击按钮切换主题颜色。其他**定制主题或者多主题模式**的场景实现方法大概差不多，多数是在**多种身份或者角色**的系统中，比如说一个项目中有**买家**和**卖家**两种角色，在产品设计时**买家用橙色主题色**，卖家用**蓝色主题色**，这时就可以使用供应商模式，设置全局主题供应商**Provider**，根据用户身份动态设置主题色。
+
+主题切换Demo在线体验：https://codesandbox.io/embed/quirky-sun-9djpl, 下面来分析下里面的代码。
+
+根组件App.js中：
+
+```js
+export const ThemeContext = React.createContext();
+
+const themes = {
+  light: {
+    background: "#fff",
+    color: "#000"
+  },
+  dark: {
+    background: "#171717",
+    color: "#fff"
+  }
+};
+
+export default function App() {
+  const [theme, setTheme] = useState("dark");
+
+  function toggleTheme() {
+    setTheme(theme === "light" ? "dark" : "light");
+  }
+
+  const providerValue = {
+    theme: themes[theme],
+    toggleTheme
+  };
+
+  return (
+    <div className={`App theme-${theme}`}>
+      <ThemeContext.Provider value={providerValue}>
+        <Toggle />
+        <List />
+      </ThemeContext.Provider>
+    </div>
+  );
+}
+```
+
+我们首先调用**createContext**创建出一个ThemeContext并导出。然后使用useState生成theme主题变量，然后通过ThemeContext.**Provider**包裹需要修改主题的组件。
+
+然后在子孙组件里使用**useContext**消费主题，代码大概如下：
+
+```
+// Toggle.tsx
+import React, { useContext } from "react";
+import { ThemeContext } from "./App";
+
+export default function Toggle() {
+  const theme = useContext(ThemeContext);
+
+  return (
+    <label className="switch">
+      <input type="checkbox" onClick={theme.toggleTheme} />
+      <span className="slider round" />
+    </label>
+  );
+}
+// ListItem.tsx
+import React, { useContext } from "react";
+import { ThemeContext } from "./App";
+
+export default function ListItem() {
+  const theme = useContext(ThemeContext);
+
+  return <li style={theme.theme}>...</li>;
+}
+```
+这里由于**List**组件本身并**不消费**theme，那么就可以**完全忽略**theme，而ListItem组件需要消费theme，则直接**通过useContext**消费；更进一步还可以在ListItem里，通过**toggleTheme方法**修改全局主题。
+> 这如果使用props传递模式，那也是要通过List组件传递toggleTheme方法。
+
+所以说供应商模式可以说非常的实用，一定要在项目中**用起来**。
+
+
+### 封装供应商模式HOOK
+
+上面的案例中，我们通过React.createContext和React.useContext方法**创建和消费供应商Context**，需要子组件导入Context；这里我们可以自己封装一个hook，就可以**简化使用useContext的逻辑**。
+
+
+**主题的逻辑相对比较独立**，我们可以把这块内容单独提出来，其实可以直接讲**主题切换**的逻辑封装在**ContextProvider**里：
+
+```js
+function ThemeProvider({children}) {
+  const [theme, setTheme] = useState("dark");
+
+  function toggleTheme() {
+    setTheme(theme === "light" ? "dark" : "light");
+  }
+
+  const providerValue = {
+    theme: themes[theme],
+    toggleTheme
+  };
+
+  return (
+    <ThemeContext.Provider value={providerValue}>
+      {children}
+    </ThemeContext.Provider>
+  );
+}
+
+export default function App() {
+  return (
+    <div className={`App theme-${theme}`}>
+      <ThemeProvider>
+        <Toggle />
+        <List />
+      </ThemeProvider>
+    </div>
+  );
+}
+```
+然后我们封装下**消费ThemeContext主题**的逻辑：
+
+```js
+function useThemeContext() {
+  const theme = useContext(ThemeContext);
+  if (!theme) {
+    throw new Error("useThemeContext must be used within ThemeProvider");
+  }
+  return theme;
+}
+```
+
+经过这一步简单封装之后，消费Context时，直接调用**useThemeContext**钩子，组件就能拿到theme了。
+
+
+
+### 优秀实现案例：style-components里的ThemeProvider
+
+不知道大家有没有使用过**style-components**组件，里面的**ThemeProvider**就是类似的实现逻辑，有兴趣的可以找找源码阅读一下：
+
+```js
+
+import { ThemeProvider } from "styled-components";
+
+export default function App() {
+  const [theme, setTheme] = useState("dark");
+
+  function toggleTheme() {
+    setTheme(theme === "light" ? "dark" : "light");
+  }
+
+  return (
+    <div className={`App theme-${theme}`}>
+      <ThemeProvider theme={themes[theme]}>
+        <>
+          <Toggle toggleTheme={toggleTheme} />
+          <List />
+        </>
+      </ThemeProvider>
+    </div>
+  );
+}
+
+import styled from "styled-components";
+
+export default function ListItem() {
+  return (
+    <Li>
+      Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod
+      tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim
+      veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea
+      commodo consequat.
+    </Li>
+  );
+}
+
+const Li = styled.li`
+  ${({ theme }) => `
+     background-color: ${theme.backgroundColor};
+     color: ${theme.color};
+  `}
+`;
+```
+
+### 总结：
+
+供应商模式 ———— React中**Context相关的API**，实现了**跨层级传递props**。并且有效**减少重构**代码时发生bug的几率，**不消费**某个数据的组件可以完全忽略这个数据向下传递，同时也让整个应用的**数据流变的更清晰可控**。
+
+在**根目录**上使用一些供应商模式，会让整个应用的数据流都变的清晰起来，因为所有组件都能**轻松获取**到**全局的变量**。
+
+当然供应商模式也**有缺点**：**过度使用供应商模式**时，所有**useContext关联**数据的组件，都会在数据变化时**重新渲染**，这会影响应用的**性能**。
+
+所以要确保不消耗某数据的组件，不会因为使用了useContext，从而产生该数据变化而重新渲染，那就可能需要**拆分不同的Provider供应商**来针对不同数据的更新，从而能**避免无效渲染**，最大限度**提升性能**。
+
+
+
+---
+## 原文翻译
+
 ## 提供者模式
 
 > 使数据可用于多个子组件

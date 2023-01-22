@@ -4,7 +4,7 @@ hero:
   desc: 根据 patterns.dev 翻译
   actions:
     - text: 开始学习
-      link: /components
+      link: /guide
 features:
   - icon: https://gw.alipayobjects.com/zos/bmw-prod/881dc458-f20b-407b-947a-95104b5ec82b/k79dm8ih_w144_h144.png
     title: Feature 1

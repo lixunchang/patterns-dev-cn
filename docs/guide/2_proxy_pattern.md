@@ -1,3 +1,114 @@
+
+
+## 代理模式
+
+#### 基本释义
+通过**替身**，拦截并控制**目标对象**和其他对象的**互动**。
+<p align=center><img src="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/96e97df4754b4f28b7fc77141a99f6eb~tplv-k3u1fbpfcp-watermark.image?" alt="image.png" width="80%" /></p>
+
+> 没错，咱们JavaScript里专业替身**代理模式**，就是通过Proxy关键字实现的。
+ 
+```js
+const person = {
+  name: "John Doe",
+  age: 42,
+  nationality: "American"
+};
+
+const personProxy = new Proxy(person, {});
+```
+**交互实现**：通过第二个控制器参数**handler**实现与被代理对象进行交互
+```js
+
+const personProxy2 = new Proxy(person, {
+  get: (obj, prop) => {
+    console.log(`The value of ${prop} is ${obj[prop]}`);
+  },
+  set: (obj, prop, value) => {
+    console.log(`Changed ${prop} from ${obj[prop]} to ${value}`);
+    obj[prop] = value;
+  }
+});
+```
+通过**new**一个Proxy对象，这个对象构造函数接收两个参数，第一个就是**被代理的目标对象**，第二个就是控制器handler，通常是获取或修改目标对象属性get和set方法。
+
+#### 替身的使用
+
+替身的使用和被代理的对象的使用一样，**直接调用**就可以了。
+
+```js
+personProxy.name;
+personProxy.age = 43;
+person.age = 45; // 被代理的对象依然可以直接使用
+```
+
+当然new Proxy构造函数的第二个控制器参数是必传的，如果是和替身的属性一一对应，没有其他操作，可以传个空对象{}，否则的话可以重写get或set方法，处理特殊逻辑。
+
+其中**get**方法有两个参数，第一个参数是被代理的Object本身，第二个参数是当前被使用的属性的名称，return**返回值**会直接生效，不return会默认拿取被代理对象的该**属性值**；
+
+而**set**方法有三个参数，第一个参数是被代理的Object本身，第二个参数是当前被修改的属性名称，第三个参数是将要设置的值；重写set方法必须要重写修改逻辑obj[prop] = value，不重新修改逻辑，set的属性值无效，而且set必须**return true**,否则会报错;
+
+
+### 最佳实践
+
+代理模式通常用来**校验属性值**，比如类型、是否为空，是否非法等等，从而最大限度的保证数据的有效性；
+
+```js
+const personProxy = new Proxy(person, {
+  get: (obj, prop) => {
+    if (!obj[prop]) {
+      console.log(
+        `Hmm.. this property doesn't seem to exist on the target object`
+      );
+    } else {
+      console.log(`The value of ${prop} is ${obj[prop]}`);
+    }
+  },
+  set: (obj, prop, value) => {
+    if (prop === "age" && typeof value !== "number") {
+      console.log(`Sorry, you can only pass numeric values for age.`);
+    } else if (prop === "name" && value.length < 2) {
+      console.log(`You need to provide a valid name.`);
+    } else {
+      console.log(`Changed ${prop} from ${obj[prop]} to ${value}.`);
+      obj[prop] = value;
+    }
+  }
+});
+```
+
+### Reflect映射
+
+Reflect对象和Proxy构造函数的第二个参数handler**控制器**一样，通过**get**和**set**获取或者修改目标对象的属性；所以personProxy就可以改造为下面这种写法：
+
+```js
+const personProxy = new Proxy(person, {
+  get: (obj, prop) => {
+    console.log(`The value of ${prop} is ${Reflect.get(obj, prop)}`);
+  },
+  set: (obj, prop, value) => {
+    console.log(`Changed ${prop} from ${obj[prop]} to ${value}`);
+    Reflect.set(obj, prop, value);
+  }
+});
+```
+handler的get方法中，通过**Reflect.get**方法获取目标对象obj的prop属性的值；通过R**eflect.set**方法设置目标对象obj的prop属性的值为value。
+
+### 总结
+
+**代理模式**对于**控制**目标对象的行为是非常有用的。代理有很多使用场景，比如说**验证**，**格式化**，**警告**以及**调试**。
+
+但是**过度使用代理对象**，或者是在handler控制器中做很**耗性能的操**作，就会很容易**影响到你整个应用的性能表现**。所以最好**不要**在高性能要求的代码中使用代理模式。
+
+
+
+ 
+
+
+
+---
+原文翻译
+
 ## 代理模式
 
 > 目标对象的拦截和控制交互

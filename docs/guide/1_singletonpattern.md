@@ -1,5 +1,154 @@
 ## 单例模式
 
+### 极简释义
+
+在整个应用程序中全局共享唯一一个实例；
+
+### 案例分析一：
+
+#### 伪单例示例
+
+```
+let counter = 0;
+
+class Counter {
+  getInstance() {
+    return this;
+  }
+
+  getCount() {
+    return counter;
+  }
+
+  increment() {
+    return ++counter;
+  }
+
+  decrement() {
+    return --counter;
+  }
+}
+```
+
+**然而，这个类** ***不符合单例的标准*** **! Singleton应该只能实例化一次。目前，我们可以创建Counter类的多个实例。**
+
+```
+const counter1 = new Counter();
+const counter2 = new Counter();
+
+console.log(counter1.getInstance() === counter2.getInstance()); // false
+```
+
+通过两次调用new方法，我们只需要将counter1和counter2设置为不同的实例。getInstance方法在counter1和counter2上返回的值实际上**返回了对不同实例的引用:它们并不严格相等**!
+
+#### 限制只能创建一个实例
+
+##### 方法一：提供唯一实例变量
+
+```
+let instance;
+let counter = 0;
+
+class Counter {
+  constructor() {
+    if (instance) {
+      throw new Error("You can only create one instance!");
+    }
+    instance = this;
+  }
+  getInstance() {
+    return this;
+  }
+  // getCount/increment/decrement...
+}
+const counter1 = new Counter();
+const counter2 = new Counter();
+// Error: You can only create one instance!
+```
+
+通过在构造方法里实例化**唯一实例变量**，并在**二次调用构造方法时时抛出Error**，从而保证了全局唯一实例；
+
+
+
+更近一步，我们可以导出这个唯一实例，并使用**Object.freeze冻结属性**不能被添加或修改；
+
+```
+let instance;
+let counter = 0;
+
+class Counter {
+  constructor() {
+    if (instance) {
+      throw new Error("You can only create one instance!");
+    }
+    instance = this;
+  }
+
+  getInstance() {
+    return this;
+  }
+
+  getCount() {
+    return counter;
+  }
+
+  increment() {
+    return ++counter;
+  }
+
+  decrement() {
+    return --counter;
+  }
+}
+
+const singletonCounter = Object.freeze(new Counter());
+export default singletonCounter;
+```
+
+这样不管我们在那里调用increment或者decrement方法，计数器总是在最新的数量上进行计算，调用getCount方法也是拿到最新的数量数据。
+
+**经典使用场景**：电商库存业务场景就特别适合这个单例模式的计数器。
+
+## 常规Object写法
+其他类似Java，C++之类的面向对象编程语言，必须要用class来创建对象，而**像JavaScript这种可以直接创建对象的语言，则可以用常规对象来写单例模式：**：
+
+
+```js
+let count = 0;
+
+const counter = {
+  increment() {
+    return ++count;
+  },
+  decrement() {
+    return --count;
+  }
+};
+
+Object.freeze(counter);
+export { counter };
+
+```
+
+在线实例：https://codesandbox.io/embed/competent-moon-rvzrr
+
+
+### React
+
+在React中，我们经常通过状态管理工具(如Redux或React Context)来依赖**全局状态**，而不是使用单例。尽管它们的**全局状态行为看起来类似于Singleton**，但这些工具提供的是只读状态，而不是Singleton的可变状态。当使用Redux时，在组件通过dispatcher发送了一个动作之后，只有**纯函数reducer**可以更新状态。 
+
+尽管拥有**全局状态的缺点不会**因为使用这些工具而神奇地消失，但我们至少可以确保**全局状态按照我们想要的方式发生变化**，因为组件不能直接更新状态。
+
+
+
+
+
+
+---
+## 原文翻译
+
+## 单例模式
+
 > 在整个应用程序中共享一个全局实例
 
 单例是可以只被实例化一次的类，并且可以被全局访问。这个唯一的实例可以在整个应用程序中共享，这使得单例非常适合管理应用程序的全局状态。
