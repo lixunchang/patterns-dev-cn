@@ -1,7 +1,4 @@
----
-highlight: atom-one-dark
-theme: smartblue
----
+## 模块化模式
 
 ### 写在前面
 
